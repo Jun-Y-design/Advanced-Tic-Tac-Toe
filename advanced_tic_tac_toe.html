@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Tic-Tac-Toe</title>
+  <style>
+    /* 木目調背景：下記は無料のテクスチャ素材を利用（例: Transparent Textures の wood.png） */
+    body {
+      font-family: 'Georgia', serif;
+      background: url("https://www.transparenttextures.com/patterns/wood-pattern.png") repeat;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    h1 {
+      margin-bottom: 10px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    #controls {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    /* スタイリッシュなセレクトボックスとボタン */
+    select, button {
+      font-size: 16px;
+      padding: 8px 12px;
+      margin: 5px;
+      border: none;
+      border-radius: 4px;
+      background: linear-gradient(145deg, #f0f0f0, #cacaca);
+      box-shadow:  3px 3px 6px #bebebe, -3px -3px 6px #ffffff;
+      cursor: pointer;
+    }
+    select:focus, button:focus {
+      outline: none;
+    }
+    /* 盤面 */
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 8px;
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background-color: #fff;
+      border: 2px solid #8B4513;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s, box-shadow 0.3s;
+    }
+    .cell:hover {
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+    }
+    /* ブラックモード用：隠す（黒く表示） */
+    .hidden {
+      background-color: #000 !important;
+      color: #000;
+    }
+    /* カンニング時：隠していた記号を赤で表示 */
+    .revealed {
+      color: red !important;
+    }
+    /* 一時的に置けないセル：灰色表示 */
+    .locked {
+      background-color: gray !important;
+      pointer-events: none;
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 1.5em;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <h1>Advanced Tic-Tac-Toe</h1>
+  <div id="controls">
+    <select id="modeSelection">
+      <option value="normal">通常モード</option>
+      <option value="black">ブラックモード</option>
+    </select>
+    <button id="cheatButton">カンニング</button>
+    <button id="resetButton">リセット</button>
+  </div>
+  <div id="board">
+    <!-- 9つのセルは createBoard() 内で生成 -->
+  </div>
+  <div id="status"></div>
+
+  <script>
+    const board = document.getElementById("board");
+    let cells; // 後で再設定するため let で宣言
+    const modeSelection = document.getElementById("modeSelection");
+    const cheatButton = document.getElementById("cheatButton");
+    const resetButton = document.getElementById("resetButton");
+    const statusText = document.getElementById("status");
+
+    let currentPlayer = "O";
+    let moves = { "O": [], "X": [] };
+    let lockedCells = new Set();
+    let isBlackMode = false;
+    let isCheatMode = false;
+
+    // ボード生成
+    function createBoard() {
+      board.innerHTML = "";
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.dataset.index = i;
+        cell.addEventListener("click", () => makeMove(cell));
+        board.appendChild(cell);
+      }
+      cells = document.querySelectorAll(".cell");
+    }
+
+    // モード選択
+    modeSelection.addEventListener("change", (event) => {
+      isBlackMode = event.target.value === "black";
+      resetBoard();
+    });
+
+    // カンニングボタン：トグルで表示切替
+    cheatButton.addEventListener("click", () => {
+      isCheatMode = !isCheatMode;
+      cells.forEach(cell => {
+        if (cell.classList.contains("hidden")) {
+          cell.classList.toggle("revealed", isCheatMode);
+        }
+      });
+    });
+
+    // リセットボタン
+    resetButton.addEventListener("click", resetBoard);
+
+    // 駒を置く処理
+    function makeMove(cell) {
+      // 既に記号がある、またはロック中の場合は無視
+      if (cell.textContent || lockedCells.has(cell)) return;
+
+      // 記号を置く
+      cell.textContent = currentPlayer;
+      moves[currentPlayer].push(cell);
+
+      // 同じ記号が4つになった場合、最も古い記号を削除してロック
+      if (moves[currentPlayer].length === 4) {
+        let oldestCell = moves[currentPlayer].shift();
+        oldestCell.textContent = "";
+        oldestCell.classList.add("locked");
+        lockedCells.add(oldestCell);
+        // ロック解除の時間を1000ms（1秒）に変更
+        setTimeout(() => {
+          if (!moves["O"].includes(oldestCell) && !moves["X"].includes(oldestCell)) {
+            oldestCell.classList.remove("locked");
+            lockedCells.delete(oldestCell);
+            // セルが空なら hidden クラスを再適用しない
+            if (isBlackMode && oldestCell.textContent !== "") {
+              oldestCell.classList.add("hidden");
+            } else {
+              oldestCell.classList.remove("hidden");
+            }
+          }
+        }, 1000);
+      }
+
+      // ブラックモードの場合、記号が置かれたセルを常に隠す（カンニング中は表示切替）
+      if (isBlackMode) {
+        cell.classList.add("hidden");
+      }
+
+      // 勝利判定
+      if (checkWin(currentPlayer)) {
+        statusText.textContent = `${currentPlayer} wins!`;
+        disableBoard();
+        return;
+      }
+
+      // ターン交代
+      currentPlayer = currentPlayer === "O" ? "X" : "O";
+    }
+
+    // 勝利判定処理
+    function checkWin(player) {
+      const winPatterns = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+        [0, 4, 8], [2, 4, 6]             // Diagonals
+      ];
+      return winPatterns.some(pattern => {
+        return pattern.every(index => cells[index].textContent === player);
+      });
+    }
+
+    // 盤面無効化（勝利時）
+    function disableBoard() {
+      cells.forEach(cell => {
+        // クリックイベントを削除するため、セルをクローンして置換
+        const newCell = cell.cloneNode(true);
+        cell.parentNode.replaceChild(newCell, cell);
+      });
+    }
+
+    // 盤面リセット処理
+    function resetBoard() {
+      createBoard();
+      moves = { "O": [], "X": [] };
+      lockedCells.clear();
+      currentPlayer = "O";
+      statusText.textContent = "";
+    }
+
+    // 初期化
+    createBoard();
+  </script>
+</body>
+</html>
